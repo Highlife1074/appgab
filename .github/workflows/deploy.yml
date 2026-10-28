@@ -26,9 +26,6 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
-        env:
-          VITE_LLM_PROVIDER: ${{ vars.VITE_LLM_PROVIDER || 'mock' }}
-          VITE_LLM_PROXY_URL: ${{ vars.VITE_LLM_PROXY_URL }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

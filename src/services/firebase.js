@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app'
-import { getAuth, GoogleAuthProvider, browserLocalPersistence, setPersistence } from 'firebase/auth'
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore'
+import { connectAuthEmulator, getAuth, GoogleAuthProvider, browserLocalPersistence, setPersistence } from 'firebase/auth'
+import { connectFirestoreEmulator, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore'
+import { connectFunctionsEmulator, getFunctions } from 'firebase/functions'
 
 // Identifiants publics de l'application web (non secrets) : la sécurité des données
 // repose sur firestore.rules. Les variables VITE_FIREBASE_* permettent de cibler un autre projet.
@@ -27,3 +28,13 @@ googleProvider.setCustomParameters({ prompt: 'select_account' })
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
 })
+
+// Même région que les Cloud Functions (functions/src/index.js).
+export const functions = getFunctions(app, 'europe-west1')
+
+// Développement local : `VITE_USE_EMULATORS=true npm run dev` avec `firebase emulators:start`.
+if (import.meta.env.VITE_USE_EMULATORS === 'true') {
+  connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true })
+  connectFirestoreEmulator(db, '127.0.0.1', 8080)
+  connectFunctionsEmulator(functions, '127.0.0.1', 5001)
+}

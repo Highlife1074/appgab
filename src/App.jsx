@@ -7,7 +7,8 @@ import ProtectedRoute, { FullScreenLoader, PublicOnlyRoute } from './components/
 // Découpage par route : la page de connexion ne charge pas le moteur de simulation.
 const LoginPage = lazy(() => import('./pages/LoginPage'))
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
-const SimulationPage = lazy(() => import('./pages/SimulationPage'))
+const DomainPage = lazy(() => import('./pages/DomainPage'))
+const TrainingPage = lazy(() => import('./pages/TrainingPage'))
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 
 // HashRouter : GitHub Pages ne sait pas réécrire les URL vers index.html,
@@ -26,7 +27,9 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<AppShell />}>
               <Route index element={<DashboardPage />} />
-              <Route path="simulation/:domainId" element={<SimulationPage />} />
+              <Route path="domaine/:domainId" element={<DomainPage />} />
+              <Route path="domaine/:domainId/module/:moduleId" element={<TrainingPage />} />
+              <Route path="domaine/:domainId/examen" element={<TrainingPage exam />} />
             </Route>
           </Route>
 

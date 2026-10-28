@@ -2,7 +2,7 @@ import { useProgress } from '../hooks/useProgress'
 import LevelCard from '../components/dashboard/LevelCard'
 import Loader from '../components/ui/Loader'
 import ErrorBanner from '../components/ui/ErrorBanner'
-import { PASS_THRESHOLD } from '../utils/constants'
+import { DOMAIN_IDS } from '../utils/constants'
 
 export default function DashboardPage() {
   const { domains, isLoading, error } = useProgress()
@@ -11,7 +11,7 @@ export default function DashboardPage() {
     <div>
       <h1 className="text-xs tracking-widest text-neutral-500 uppercase">Tableau de bord</h1>
       <p className="mt-2 text-sm text-neutral-400">
-        Choisis ton terrain. Seuil de validation : {PASS_THRESHOLD}/10 — sans exception.
+        Choisis ton terrain. Le palier 10 est celui d'un expert international : compte des mois, pas des jours.
       </p>
 
       <ErrorBanner message={error} />
@@ -19,8 +19,8 @@ export default function DashboardPage() {
         <Loader label="Chargement de la progression" />
       ) : (
         <div className="mt-6 grid gap-3">
-          {domains.map((domain) => (
-            <LevelCard key={domain.id} domainId={domain.id} {...domain} />
+          {DOMAIN_IDS.map((id) => (
+            <LevelCard key={id} domain={domains[id]} />
           ))}
         </div>
       )}

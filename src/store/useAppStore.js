@@ -2,11 +2,10 @@ import { create } from 'zustand'
 import { SIMULATION_PHASE } from '../utils/constants'
 
 const initialSimulation = {
+  key: null, // `${domain}:${moduleId}` ou `${domain}:exam`
   phase: SIMULATION_PHASE.IDLE,
-  simulationId: null,
-  domain: null,
-  level: null,
   course: null,
+  simulationId: null,
   challenge: null,
   evaluation: null,
   outcome: null,
@@ -19,7 +18,7 @@ export const useAppStore = create((set) => ({
   authStatus: 'loading',
   setUser: (user) => set({ user, authStatus: user ? 'authenticated' : 'anonymous' }),
 
-  // Progression — miroir temps réel de users/{uid}.progress
+  // Progression brute de users/{uid}.progress (normalisée dans useProgress)
   progress: null,
   progressStatus: 'idle',
   progressError: null,
@@ -28,8 +27,8 @@ export const useAppStore = create((set) => ({
   setProgressError: (progressError) => set({ progressStatus: 'error', progressError }),
   clearProgress: () => set({ progress: null, progressStatus: 'idle', progressError: null }),
 
-  // Simulation en cours
+  // Séance en cours : une seule à la fois
   simulation: initialSimulation,
   patchSimulation: (patch) => set((state) => ({ simulation: { ...state.simulation, ...patch } })),
-  resetSimulation: () => set({ simulation: initialSimulation }),
+  resetSimulation: (key = null) => set({ simulation: { ...initialSimulation, key } }),
 }))

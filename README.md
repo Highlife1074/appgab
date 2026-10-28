@@ -8,7 +8,6 @@ Stack : React + Vite · Tailwind CSS v4 · Firebase (Auth + Firestore) · Zustan
 
 ```bash
 npm install
-cp .env.example .env.local   # renseigner la config Firebase
 npm run dev
 ```
 
@@ -25,5 +24,5 @@ npm run dev
 ## Déploiement
 
 Le workflow `.github/workflows/deploy.yml` construit et publie sur GitHub Pages à chaque push sur `main`
-(Settings → Pages → Source : GitHub Actions ; config Firebase dans les secrets du dépôt).
+(Settings → Pages → Source : GitHub Actions).
 Ajouter `<user>.github.io` aux domaines autorisés de Firebase Auth.

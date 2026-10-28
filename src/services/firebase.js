@@ -2,24 +2,15 @@ import { initializeApp, getApps, getApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider, browserLocalPersistence, setPersistence } from 'firebase/auth'
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore'
 
+// Identifiants publics de l'application web (non secrets) : la sécurité des données
+// repose sur firestore.rules. Les variables VITE_FIREBASE_* permettent de cibler un autre projet.
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-}
-
-const missingKeys = Object.entries(firebaseConfig)
-  .filter(([, value]) => !value)
-  .map(([key]) => key)
-
-if (missingKeys.length > 0) {
-  throw new Error(
-    `[firebase] Configuration incomplète : ${missingKeys.join(', ')}. ` +
-      'Copiez .env.example vers .env.local et renseignez les valeurs.',
-  )
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyAOEQuS2zkOgS2l_NBAJ-kiKTjP1RXk3Y0',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'eminence-3d407.firebaseapp.com',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'eminence-3d407',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'eminence-3d407.firebasestorage.app',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '537979105730',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:537979105730:web:05399a55485b730dc2a65b',
 }
 
 // Évite la double initialisation lors du hot-reload Vite.

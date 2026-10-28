@@ -2,7 +2,6 @@ import { initializeApp } from 'firebase-admin/app'
 import { getFirestore } from 'firebase-admin/firestore'
 import { HttpsError, onCall } from 'firebase-functions/https'
 import { setGlobalOptions } from 'firebase-functions/options'
-import { defineSecret } from 'firebase-functions/params'
 import {
   MAX_AI_CALLS_PER_DAY,
   MAX_RESPONSE_LENGTH,
@@ -33,12 +32,21 @@ import {
 initializeApp()
 const db = getFirestore()
 
-const ANTHROPIC_API_KEY = defineSecret('ANTHROPIC_API_KEY')
+// La clé Anthropic est saisie dans la console Firestore (document config/anthropic, champ apiKey).
+// Les règles interdisent toute lecture depuis le navigateur ; seul le SDK Admin y accède.
+// Relue à chaque appel (lecture négligeable) : un changement de clé s'applique immédiatement.
+async function getApiKey() {
+  const key = (await db.doc('config/anthropic').get()).get('apiKey')
+  if (typeof key !== 'string' || !key.trim()) {
+    throw new HttpsError('failed-precondition', 'Le moteur IA n’est pas configuré (clé Anthropic absente).')
+  }
+  return key.trim()
+}
 
 setGlobalOptions({ region: 'europe-west1', maxInstances: 10 })
 
 const callable = (handler) =>
-  onCall({ secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 540, memory: '512MiB' }, (request) => {
+  onCall({ timeoutSeconds: 540, memory: '512MiB' }, (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Connexion requise.')
     return handler(request.data ?? {}, request.auth.uid)
   })
@@ -104,9 +112,10 @@ export const getCourse = callable(async ({ domain, level, moduleId }, uid) => {
   const cached = await cacheRef.get()
   if (cached.exists) return { course: cached.data().course }
 
+  const apiKey = await getApiKey()
   await consumeQuota(uid, domain)
   const course = await generateStructured({
-    apiKey: ANTHROPIC_API_KEY.value(),
+    apiKey,
     system: COURSE_SYSTEM,
     prompt: coursePrompt({ domainId: domain, levelData: getLevel(domain, targetLevel), module }),
     schema: courseSchema,
@@ -121,6 +130,7 @@ export const getCourse = callable(async ({ domain, level, moduleId }, uid) => {
 export const startChallenge = callable(async ({ domain, moduleId, exam }, uid) => {
   requireDomain(domain)
   const isExam = exam === true
+  const apiKey = await getApiKey()
   const domainProgress = await consumeQuota(uid, domain, (current) => {
     if (isExam) {
       const moduleIds = getLevel(domain, current.level).modules.map((m) => m.id)
@@ -137,7 +147,7 @@ export const startChallenge = callable(async ({ domain, moduleId, exam }, uid) =
 
   const recentTitles = (isExam ? domainProgress.exam.recentTitles : domainProgress.modules[moduleId]?.recentTitles) ?? []
   const challenge = await generateStructured({
-    apiKey: ANTHROPIC_API_KEY.value(),
+    apiKey,
     system: CHALLENGE_SYSTEM,
     prompt: challengePrompt({ domainId: domain, levelData, module, isExam, recentTitles }),
     schema: challengeSchema,
@@ -192,6 +202,7 @@ export const submitResponse = callable(async ({ simulationId, response }, uid) =
   const { domain, level, moduleId } = simulation
   const isExam = simulation.kind === 'exam'
   const levelData = getLevel(domain, level)
+  const apiKey = await getApiKey()
   try {
     await consumeQuota(uid, domain, (current) => {
       if (current.level !== level) {
@@ -204,7 +215,7 @@ export const submitResponse = callable(async ({ simulationId, response }, uid) =
   }
 
   const raw = await generateStructured({
-    apiKey: ANTHROPIC_API_KEY.value(),
+    apiKey,
     system: EVALUATION_SYSTEM,
     prompt: evaluationPrompt({
       domainId: domain,

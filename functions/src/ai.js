@@ -5,8 +5,11 @@ import { toOutputSchema } from './schemas.js'
 
 const MODEL = 'claude-opus-5-5'
 
-let client = null
-const getClient = (apiKey) => (client ??= new Anthropic({ apiKey }))
+const clients = new Map()
+const getClient = (apiKey) => {
+  if (!clients.has(apiKey)) clients.set(apiKey, new Anthropic({ apiKey }))
+  return clients.get(apiKey)
+}
 
 /**
  * Appelle Claude avec une sortie JSON contrainte par `schema` (zod) et renvoie l'objet validé.

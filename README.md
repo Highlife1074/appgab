@@ -24,12 +24,12 @@ Stack : React + Vite · Tailwind CSS v4 · Firebase (Auth, Firestore, Cloud Func
 ## Déploiement
 
 - Site : GitHub Actions publie sur GitHub Pages à chaque push sur `main`.
-- Serveur (depuis Google Cloud Shell ou un poste avec Node 22) :
+- Clé Anthropic : console Firestore, document `config/anthropic`, champ `apiKey` (illisible côté navigateur).
+- Serveur (Node 22) :
 
 ```bash
 cd functions && npm install && cd ..
 npx firebase-tools login --no-localhost
-npx firebase-tools functions:secrets:set ANTHROPIC_API_KEY
 npx firebase-tools deploy --only functions,firestore
 ```
 

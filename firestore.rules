@@ -17,6 +17,11 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Configuration serveur (clé Anthropic) : jamais lisible depuis le navigateur.
+    match /config/{docId} {
+      allow read, write: if false;
+    }
+
     // Cours générés une fois par module et partagés entre apprenants.
     match /courses/{courseId} {
       allow read: if isSignedIn();

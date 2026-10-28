@@ -25,7 +25,7 @@ export default function TrainingSession({ session }) {
       )}
 
       {phase === P.LOADING_COURSE && (
-        <Loader label="Préparation du cours (jusqu'à deux minutes la première fois)" />
+        <Loader label="Rédaction du cours par L'Éminence (3 à 4 minutes la première fois, instantané ensuite)" />
       )}
       {course && <CourseBlock course={course} />}
 

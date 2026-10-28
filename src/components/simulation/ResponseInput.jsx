@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import Button from '../ui/Button'
-import { MIN_RESPONSE_LENGTH } from '../../utils/constants'
+import { MAX_RESPONSE_LENGTH, MIN_RESPONSE_LENGTH } from '../../utils/constants'
 
 export default function ResponseInput({ onSubmit, disabled }) {
   const [text, setText] = useState('')
@@ -21,13 +21,14 @@ export default function ResponseInput({ onSubmit, disabled }) {
         value={text}
         onChange={(event) => setText(event.target.value)}
         disabled={disabled}
-        rows={10}
+        rows={12}
+        maxLength={MAX_RESPONSE_LENGTH}
         className="w-full resize-y border border-neutral-700 bg-neutral-900 p-3 text-sm leading-relaxed text-neutral-100 placeholder:text-neutral-600 focus:border-neutral-400 focus:outline-none"
         placeholder="Ce que tu dis. Ce que tu fais. Rien d'autre."
       />
       <div className="flex items-center justify-between gap-4">
         <span className={`text-xs tabular-nums ${length < MIN_RESPONSE_LENGTH ? 'text-neutral-600' : 'text-neutral-400'}`}>
-          {length} / {MIN_RESPONSE_LENGTH} min.
+          {length} car. · min. {MIN_RESPONSE_LENGTH}
         </span>
         <Button type="submit" disabled={disabled || length < MIN_RESPONSE_LENGTH}>
           Soumettre

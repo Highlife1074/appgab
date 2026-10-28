@@ -1,88 +1,79 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 import { useAppStore } from '../store/useAppStore'
-import { useProgress } from './useProgress'
-import { evaluateResponse, generateChallenge, generateCourse, llmProviderName } from '../services/llm/llmService'
-import { attachChallenge, attachEvaluation, createSimulation } from '../services/simulationService'
-import { recordAttempt } from '../services/progressService'
-import { MIN_RESPONSE_LENGTH, SIMULATION_PHASE } from '../utils/constants'
+import { fetchCourse, startChallenge, submitResponse } from '../services/aiService'
+import { MAX_RESPONSE_LENGTH, MIN_RESPONSE_LENGTH, SIMULATION_PHASE as P } from '../utils/constants'
 
-export function useSimulation(domain) {
-  const user = useAppStore((state) => state.user)
+const BUSY = [P.LOADING_COURSE, P.LOADING_CHALLENGE, P.EVALUATING]
+const EMPTY = { phase: P.IDLE, course: null, simulationId: null, challenge: null, evaluation: null, outcome: null, error: null }
+
+/** Séance d'entraînement : `moduleId` pour un module, `null` pour l'examen du palier. */
+export function useSimulation(domain, moduleId) {
+  const isExam = moduleId == null
+  const key = `${domain}:${isExam ? 'exam' : moduleId}`
   const simulation = useAppStore((state) => state.simulation)
   const patchSimulation = useAppStore((state) => state.patchSimulation)
   const resetSimulation = useAppStore((state) => state.resetSimulation)
-  const { getDomain } = useProgress()
-  const { level } = getDomain(domain)
 
-  const fail = useCallback(
-    (error) => patchSimulation({ phase: SIMULATION_PHASE.ERROR, error: error.message }),
+  // Une séance d'un autre module ne doit pas fuiter dans cette vue.
+  useEffect(() => {
+    if (useAppStore.getState().simulation.key !== key) resetSimulation(key)
+  }, [key, resetSimulation])
+
+  const run = useCallback(
+    async (pendingPhase, action, nextPhase) => {
+      const previousPhase = useAppStore.getState().simulation.phase
+      patchSimulation({ phase: pendingPhase, error: null })
+      try {
+        const patch = await action()
+        patchSimulation({ ...patch, phase: nextPhase })
+      } catch (error) {
+        // On revient à l'étape précédente : l'apprenant peut réessayer sans tout perdre.
+        patchSimulation({ phase: previousPhase === P.IDLE ? P.ERROR : previousPhase, error: error.message })
+      }
+    },
     [patchSimulation],
   )
 
-  const startCourse = useCallback(async () => {
-    resetSimulation()
-    patchSimulation({ phase: SIMULATION_PHASE.LOADING_COURSE, domain, level })
-    try {
-      const course = await generateCourse({ domain, level })
-      const simulationId = await createSimulation(user.uid, { domain, level, course, provider: llmProviderName })
-      patchSimulation({ phase: SIMULATION_PHASE.COURSE, course, simulationId })
-    } catch (error) {
-      fail(error)
-    }
-  }, [domain, level, user, patchSimulation, resetSimulation, fail])
-
-  const startChallenge = useCallback(async () => {
-    patchSimulation({ phase: SIMULATION_PHASE.LOADING_CHALLENGE })
-    try {
-      const challenge = await generateChallenge({ domain, level, course: simulation.course })
-      await attachChallenge(simulation.simulationId, challenge)
-      patchSimulation({ phase: SIMULATION_PHASE.CHALLENGE, challenge })
-    } catch (error) {
-      fail(error)
-    }
-  }, [domain, level, simulation.course, simulation.simulationId, patchSimulation, fail])
-
-  const submitResponse = useCallback(
-    async (responseText) => {
-      const text = responseText.trim()
-      if (text.length < MIN_RESPONSE_LENGTH) {
-        patchSimulation({ error: `Réponse trop courte (${MIN_RESPONSE_LENGTH} caractères minimum).` })
-        return
-      }
-
-      patchSimulation({ phase: SIMULATION_PHASE.EVALUATING, error: null })
-      try {
-        const evaluation = await evaluateResponse({
-          domain,
-          level: simulation.level,
-          challenge: simulation.challenge,
-          response: text,
-        })
-        await attachEvaluation(simulation.simulationId, { responseText: text, evaluation })
-        const outcome = await recordAttempt(user.uid, {
-          domain,
-          level: simulation.level,
-          score: evaluation.score,
-        })
-        patchSimulation({ phase: SIMULATION_PHASE.EVALUATED, evaluation, outcome })
-      } catch (error) {
-        fail(error)
-      }
-    },
-    [domain, simulation.level, simulation.challenge, simulation.simulationId, user, patchSimulation, fail],
+  const loadCourse = useCallback(
+    () => run(P.LOADING_COURSE, async () => fetchCourse({ domain, moduleId }), P.COURSE),
+    [run, domain, moduleId],
   )
 
+  const loadChallenge = useCallback(
+    () =>
+      run(
+        P.LOADING_CHALLENGE,
+        async () => {
+          const data = await startChallenge(isExam ? { domain, exam: true } : { domain, moduleId })
+          return { ...data, evaluation: null, outcome: null }
+        },
+        P.CHALLENGE,
+      ),
+    [run, domain, moduleId, isExam],
+  )
+
+  const submit = useCallback(
+    (responseText) => {
+      const text = responseText.trim()
+      if (text.length < MIN_RESPONSE_LENGTH || text.length > MAX_RESPONSE_LENGTH) {
+        patchSimulation({ error: `Ta réponse doit faire entre ${MIN_RESPONSE_LENGTH} et ${MAX_RESPONSE_LENGTH} caractères.` })
+        return
+      }
+      const { simulationId } = useAppStore.getState().simulation
+      return run(P.EVALUATING, () => submitResponse({ simulationId, response: text }), P.EVALUATED)
+    },
+    [run, patchSimulation],
+  )
+
+  const current = simulation.key === key ? simulation : { ...EMPTY, key }
+
   return {
-    ...simulation,
-    currentLevel: level,
-    isBusy: [
-      SIMULATION_PHASE.LOADING_COURSE,
-      SIMULATION_PHASE.LOADING_CHALLENGE,
-      SIMULATION_PHASE.EVALUATING,
-    ].includes(simulation.phase),
-    startCourse,
-    startChallenge,
-    submitResponse,
-    reset: resetSimulation,
+    ...current,
+    isExam,
+    isBusy: BUSY.includes(current.phase),
+    loadCourse,
+    loadChallenge,
+    submit,
+    reset: () => resetSimulation(key),
   }
 }

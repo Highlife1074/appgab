@@ -1,28 +1,41 @@
 # L'Éminence
 
-Simulateur d'entraînement pour cadres et dirigeants : masterclass, épreuve sous pression, évaluation impitoyable sur 10. Seuil de validation : 8/10.
+Simulateur d'entraînement pour cadres et dirigeants : 3 domaines, 10 paliers, 6 modules par palier.
+Chaque module : une masterclass détaillée, puis des mises en situation notées par Claude.
 
-Stack : React + Vite · Tailwind CSS v4 · Firebase (Auth + Firestore) · Zustand · GitHub Pages.
+Stack : React + Vite · Tailwind CSS v4 · Firebase (Auth, Firestore, Cloud Functions) · Claude (Anthropic) · GitHub Pages.
 
-## Démarrage
+## Progression
 
-```bash
-npm install
-npm run dev
-```
-
-`VITE_LLM_PROVIDER=mock` fait tourner un moteur d'évaluation local, sans clé API.
-`proxy` appelle `VITE_LLM_PROXY_URL` (`/course`, `/challenge`, `/evaluate`), un backend qui détient la clé Claude/OpenAI.
+- Un module est validé par 2 épreuves réussies, obtenues sur des jours différents.
+- Seuil : 8/10 aux paliers 1 à 5, 9/10 aux paliers 6 à 10. L'évaluateur est calibré sur le niveau du palier.
+- L'examen de passage s'ouvre quand les 6 modules sont validés et après une durée minimale sur le palier
+  (7 jours au palier 1, jusqu'à 90 jours au palier 9). Un examen raté se retente après 24 h.
+- Règles : `functions/curriculum/rules.js`. Programme : `functions/curriculum/*.js`.
 
 ## Architecture
 
-- `src/services` : seuls fichiers qui parlent à Firebase et au LLM.
-- `src/hooks` : `useAuth`, `useProgress`, `useSimulation`, consommés par les vues.
-- `src/store` : état global Zustand (session, progression, simulation en cours).
-- `firestore.rules` : accès limité au propriétaire, palier qui ne peut monter que d'un cran.
+- `functions/` : Cloud Functions (`getCourse`, `startChallenge`, `submitResponse`). Elles seules appellent Claude
+  et écrivent la progression ; le navigateur ne fait que lire (`firestore.rules`).
+- Les cours sont générés une fois par module puis partagés (collection `courses`).
+- `functions/curriculum/` est importé aussi par le client : une seule source pour le programme et les règles.
+- `src/services` → `src/hooks` (`useAuth`, `useProgress`, `useSimulation`) → vues. État global : Zustand.
 
 ## Déploiement
 
-Le workflow `.github/workflows/deploy.yml` construit et publie sur GitHub Pages à chaque push sur `main`
-(Settings → Pages → Source : GitHub Actions).
-Ajouter `<user>.github.io` aux domaines autorisés de Firebase Auth.
+- Site : GitHub Actions publie sur GitHub Pages à chaque push sur `main`.
+- Clé Anthropic : console Firestore, document `config/anthropic`, champ `apiKey` (illisible côté navigateur).
+- Serveur (Node 22) :
+
+```bash
+cd functions && npm install && cd ..
+npx firebase-tools login --no-localhost
+npx firebase-tools deploy --only functions,firestore
+```
+
+## Développement local
+
+```bash
+npx firebase-tools emulators:start --only auth,firestore,functions
+VITE_USE_EMULATORS=true npm run dev
+```

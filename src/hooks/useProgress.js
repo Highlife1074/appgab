@@ -1,20 +1,43 @@
+import { useMemo } from 'react'
 import { useAppStore } from '../store/useAppStore'
-import { DOMAIN_IDS } from '../utils/constants'
-import { createInitialDomainProgress } from '../utils/progress'
+import { DOMAIN_IDS, examStatus, getLevel, moduleState, normalizeDomainProgress } from '../utils/constants'
 
 export function useProgress() {
-  const progress = useAppStore((state) => state.progress)
+  const raw = useAppStore((state) => state.progress)
   const status = useAppStore((state) => state.progressStatus)
   const error = useAppStore((state) => state.progressError)
 
-  const getDomain = (domainId) => progress?.[domainId] ?? createInitialDomainProgress()
+  const domains = useMemo(
+    () =>
+      Object.fromEntries(
+        DOMAIN_IDS.map((id) => {
+          const progress = normalizeDomainProgress(raw?.[id])
+          const levelData = getLevel(id, progress.level)
+          const modules = levelData.modules.map((module) => ({
+            ...module,
+            ...moduleState(progress.modules[module.id]),
+          }))
+          return [
+            id,
+            {
+              id,
+              ...progress,
+              levelData,
+              modules,
+              validatedCount: modules.filter((module) => module.validated).length,
+              exam: { ...progress.exam, ...examStatus(progress, modules.map((module) => module.id)) },
+            },
+          ]
+        }),
+      ),
+    [raw],
+  )
 
   return {
-    progress,
     status,
     error,
     isLoading: status === 'idle' || status === 'loading',
-    getDomain,
-    domains: DOMAIN_IDS.map((id) => ({ id, ...getDomain(id) })),
+    domains,
+    getDomain: (id) => domains[id],
   }
 }

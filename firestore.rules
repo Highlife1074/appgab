@@ -1,50 +1,31 @@
 rules_version = '2';
 
+// Toutes les écritures passent par les Cloud Functions (SDK Admin, qui ignore ces règles).
+// Le navigateur ne peut que lire : ni la progression ni les notes ne sont falsifiables.
 service cloud.firestore {
   match /databases/{database}/documents {
 
     function isSignedIn() { return request.auth != null; }
-    function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
-    function domains() { return ['management', 'influence', 'negotiation']; }
-
-    // Un palier ne peut que rester stable ou monter d'exactement 1, jamais dépasser 10.
-    function validLevelChange(before, after) {
-      return domains().hasAll(after.progress.keys())
-        && after.progress.keys().hasAll(domains())
-        && after.progress.management.level  in [before.progress.management.level,  before.progress.management.level + 1]
-        && after.progress.influence.level   in [before.progress.influence.level,   before.progress.influence.level + 1]
-        && after.progress.negotiation.level in [before.progress.negotiation.level, before.progress.negotiation.level + 1]
-        && after.progress.management.level <= 10
-        && after.progress.influence.level <= 10
-        && after.progress.negotiation.level <= 10;
-    }
 
     match /users/{uid} {
-      allow read: if isOwner(uid);
-      allow create: if isOwner(uid)
-        && request.resource.data.progress.management.level == 1
-        && request.resource.data.progress.influence.level == 1
-        && request.resource.data.progress.negotiation.level == 1;
-      allow update: if isOwner(uid)
-        && request.resource.data.createdAt == resource.data.createdAt
-        && validLevelChange(resource.data, request.resource.data);
-      allow delete: if false;
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow write: if false;
     }
 
     match /simulations/{simulationId} {
       allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn()
-        && request.resource.data.userId == request.auth.uid
-        && request.resource.data.domain in domains()
-        && request.resource.data.evaluation == null;
-      // Une simulation évaluée est figée.
-      allow update: if isSignedIn()
-        && resource.data.userId == request.auth.uid
-        && resource.data.status != 'evaluated'
-        && request.resource.data.userId == resource.data.userId
-        && request.resource.data.domain == resource.data.domain
-        && request.resource.data.level == resource.data.level;
-      allow delete: if false;
+      allow write: if false;
+    }
+
+    // Configuration serveur (clé Anthropic) : jamais lisible depuis le navigateur.
+    match /config/{docId} {
+      allow read, write: if false;
+    }
+
+    // Cours générés une fois par module et partagés entre apprenants.
+    match /courses/{courseId} {
+      allow read: if isSignedIn();
+      allow write: if false;
     }
   }
 }

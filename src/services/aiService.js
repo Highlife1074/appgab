@@ -14,10 +14,13 @@ const call = (name) => {
   }
 }
 
+const NETWORK_MESSAGE = 'Serveur injoignable. Vérifie ta connexion, puis réessaie dans un instant.'
+
 function toMessage(error) {
-  // Les HttpsError du serveur portent déjà un message en français.
-  if (error?.code && error.code !== 'functions/internal' && error.message) return error.message
   if (error?.code === 'functions/deadline-exceeded') return 'Le moteur a mis trop de temps à répondre. Réessaie.'
+  // Sans réponse du serveur (réseau, serveur absent), le SDK renvoie « internal » sans détail.
+  if (error?.code === 'functions/internal' && (!error.message || error.message === 'internal')) return NETWORK_MESSAGE
+  // Les HttpsError du serveur portent déjà un message en français.
   return error?.message || 'Erreur inattendue. Réessaie.'
 }
 

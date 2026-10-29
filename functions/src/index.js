@@ -36,7 +36,9 @@ const db = getFirestore()
 // Les règles interdisent toute lecture depuis le navigateur ; seul le SDK Admin y accède.
 // Relue à chaque appel (lecture négligeable) : un changement de clé s'applique immédiatement.
 async function getApiKey() {
-  const key = (await db.doc('config/anthropic').get()).get('apiKey')
+  const data = (await db.doc('config/anthropic').get()).data() ?? {}
+  // Saisie manuelle dans la console : on tolère « apiKey », « ApiKey », « apikey »…
+  const key = Object.entries(data).find(([field]) => field.toLowerCase() === 'apikey')?.[1]
   if (typeof key !== 'string' || !key.trim()) {
     throw new HttpsError('failed-precondition', 'Le moteur IA n’est pas configuré (clé Anthropic absente).')
   }

@@ -36,8 +36,12 @@ export async function generateStructured({ apiKey, system, prompt, schema, effor
       logger.error('Clé API Anthropic invalide ou absente.')
       throw new HttpsError('failed-precondition', 'Le moteur IA n’est pas configuré.')
     }
+    if (error instanceof Anthropic.BadRequestError && /credit balance/i.test(error.message)) {
+      logger.error('Crédit Anthropic épuisé.')
+      throw new HttpsError('failed-precondition', 'Crédit Anthropic épuisé : recharge le compte sur platform.claude.com (Billing).')
+    }
     if (error instanceof Anthropic.APIError) {
-      logger.error('Erreur API Anthropic', { status: error.status, message: error.message })
+      logger.error('Erreur API Anthropic', { status: error.status, detail: error.message })
       throw new HttpsError('unavailable', 'Le moteur IA est indisponible. Réessaie plus tard.')
     }
     throw error
